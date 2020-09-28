@@ -1,0 +1,101 @@
+---
+title: "Logistic_Regression"
+author: "Ritu"
+date: "28/09/2020"
+output: html_document
+---
+
+```{r}
+framingham = read.csv("framingham.csv")
+
+# Look at the structure
+str(framingham)
+#framingham = factor(framingham$education)
+#str(framingham)
+#summary(framingham)
+```
+
+
+# Load the libraries for regression
+library(caTools) # Contains several utility functions including: moving(rolling, running) window statistic functions
+library(rms) # It offers a variety of tools to build and evaluate regression models in R
+library(car) # Contains mostly functionns for applied regression, linear models, and generalised linear models
+library(DAAG) # Data Analysis and Graphics Data and Functions
+
+```{r}
+# Randomly split the data into training and testing data
+set.seed(1000)
+split = sample.split(framingham$TenYearCHD, SplitRatio = 0.70)
+
+# Split up the data using subset
+train = subset(framingham, split == TRUE)
+test = subset(framingham, split == FALSE)
+```
+
+```{r}
+# Logistic Regression Model
+framinghamLog = glm(TenYearCHD~.,data = train, family = binomial)
+summary(framinghamLog)
+car::vif(framinghamLog)
+#rms::vif(framinghamLog)
+#DAAG::vif(framinghamLog)
+```
+
+```{r}
+# Accuracy on the training set
+predictTrain = predict(framinghamLog,type = "response",newdata = train)
+predictTrain
+```
+
+```{r}
+#Confusion matrix with threshold of 0.5
+table(train$TenYearCHD, predictTrain>0.5)
+```
+
+```{r}
+# The default value for threshold on which we generally get a Confusion matrix is 0.50.
+table(train$TenYearCHD)
+#Accuracy on Train set
+# Accuracy (all correct/all) = TP + TN/TP+TN+FP+FN
+(2170+30)/(2170+30+357+9)
+# Precision (true positives/predicted positives) = TP/TP+FP
+(2170)/(2170+357)
+# Sensitivity aka Recall (true positives/all actual positives) = TP/TP+FN
+(2170)/(2170+9)
+# Specificity (true negatives/all actual negatives)=TN/TN+FP
+(30)/(30+357)
+```
+
+```{r}
+# Predictions on the test set
+predictTest = predict(framinghamLog,type = "response",newdata = test)
+```
+
+```{r}
+# Confusion matrix with threshold of 0.5
+table(test$TenYearCHD,predictTest>0.5)
+
+# Accuracy on Test Set
+(915+12)/(915+12+158+7)
+#Accuracy Levels
+# Confusion matrix with threshold of 0.9
+table(test$TenYearCHD, predictTest>0.9)
+# Confusion matrix with threshold of 0.7
+table(test$TenYearCHD, predictTest>0.7)
+#Confusion matrix with threshold of 0.3
+table(test$TenYearCHD, predictTest>0.3)
+#Confusion matrix with threshold of 0.1
+table(test$TenYearCHD, predictTest>0.1)
+```
+
+```{r}
+# Test on AUC
+library(ROCR)
+ROCRpred = prediction(predictTest, test$TenYearCHD)
+as.numeric(performance(ROCRpred, "auc")@y.values)
+ROCRperf <- performance(ROCRpred, "tpr", "fpr")
+par(mfrow=c(1,1))
+plot(ROCRperf, colorize = TRUE, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+# TPR (True positive Rate)/Recall/Sensitivity
+```
+
